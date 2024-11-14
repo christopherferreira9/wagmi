@@ -352,9 +352,22 @@ export function metaMask(parameters: MetaMaskParameters = {}) {
             params: [addEthereumChain],
           })
 
-          const currentChainId = hexToNumber(
-            // Call `'eth_chainId'` directly to guard against `this.state.chainId` (via `provider.getChainId`) being stale.
-            (await provider.request({ method: 'eth_chainId' })) as Hex,
+          const currentChainId = await withRetry(
+            async () => {
+              const chainIdHex = (await provider.request({
+                method: 'eth_chainId',
+              })) as Hex
+              const receivedChainId = hexToNumber(chainIdHex)
+              // If receivedChainId doesn't match expected chainId, throw to trigger retry
+              if (receivedChainId !== chainId) {
+                throw new Error('Chain ID mismatch')
+              }
+              return receivedChainId
+            },
+            {
+              delay: 100,
+              retryCount: 5,
+            },
           )
           if (currentChainId !== chainId)
             throw new UserRejectedRequestError(
