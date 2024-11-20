@@ -377,6 +377,7 @@ export function metaMask(parameters: MetaMaskParameters = {}) {
             },
             {
               delay: 100,
+              // retries 5 times because encryption on android devices is slower
               retryCount: 5,
             },
           )
