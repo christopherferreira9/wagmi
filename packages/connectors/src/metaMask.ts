@@ -311,6 +311,9 @@ export function metaMask(parameters: MetaMaskParameters = {}) {
       // MetaMask default chains
       // This avoids the need to react to the "unrecognized chain" error
       // and consequent back and forth between MetaMask and Wagmi.
+      // Default chains can't be added or removed from the user's wallet so
+      // when trying to switch to a default chain we default to
+      // wallet_switchEthereumChain
       const metaMaskDefaultChains = [
         mainnet.id,
         sepolia.id,
@@ -352,6 +355,14 @@ export function metaMask(parameters: MetaMaskParameters = {}) {
             params: [addEthereumChain],
           })
 
+          // eth_chainId is cached on the MetaMask SDK side to avoid an
+          // unnecessary deeplink for the RPC call. Because the current cached
+          // chainId comes from the MetaMask relay server on mobile, this
+          // causes a race condition between the result of
+          // `wallet_addEthereumChain` and the cached `eth_chainId`
+          // To avoid this, we wait for the `eth_chainId` RPC call to return
+          // the expected chainId with a retry loop. If the chainId mismatch, we
+          // throw an error to trigger the retry.
           const currentChainId = await withRetry(
             async () => {
               const chainIdHex = (await provider.request({
@@ -380,6 +391,7 @@ export function metaMask(parameters: MetaMaskParameters = {}) {
         }
       }
 
+      // Defaulting to wallet_switchEthereumChain for default chains
       try {
         await Promise.all([
           provider
